@@ -98,29 +98,7 @@ file_router = FileRouter(
 
 #________________________________________________________________________________________________________________
 
-# def partition_document(file_path: str):
-#     """Extract elements from PDF using unstructured"""
-#     print(f"📄 Partitioning document: {file_path}")
-    
-#     elements = partition_pdf(
-#         filename=file_path,  # Path to your PDF file
-#         strategy="hi_res", # Use the most accurate (but slower) processing method of extraction
-#         infer_table_structure=True, # Keep tables as structured HTML, not jumbled text
-#         extract_image_block_types=["Image"], # Grab images found in the PDF
-#         extract_image_block_to_payload=True # Store images as base64 data you can actually use
-#     )
-    
-#     print(f"✅ Extracted {len(elements)} elements")
-#     return elements
 
-# Test with your PDF file
-# file_path = "./docs/attention-is-all-you-need.pdf"  # Change this to your PDF path
-# elements = partition_document(file_path)
-
-# All types of different atomic elements we see from unstructured
-# set([str(type(el)) for el in elements])
-# View the contents inside an element
-# elements[13].to_dict()
 #________________________________________________________________________________________________________________
 
 
@@ -344,63 +322,15 @@ def export_chunks_to_json(chunks, filename="chunks_export.json"):
 # json_data = export_chunks_to_json(processed_chunks)
 #________________________________________________________________________________________________________________
 
-# def create_vector_store(documents, persist_directory="dbv1/chroma_db"):
-#     """Create and persist ChromaDB vector store"""
-#     print("🔮 Creating embeddings and storing in ChromaDB...")
-        
-#     # embedding_model = OpenAIEmbeddings(model="text-embedding-3-small")
-#     embedding_model = get_embeddings("default")
 
-    
-#     # Create ChromaDB vector store
-#     print("--- Creating vector store ---")
-#     vectorstore = Chroma.from_documents(
-#         documents=documents,
-#         embedding=embedding_model,
-#         persist_directory=persist_directory, 
-#         collection_metadata={"hnsw:space": "cosine"}
-#     )
-#     print("--- Finished creating vector store ---")
-    
-#     print(f"✅ Vector store created and saved to {persist_directory}")
-#     return vectorstore
-
-# # Create the vector store
-# # db = create_vector_store(processed_chunks)
 
 #________________________________________________________________________________________________________________
 
-# After your retrieval
-# query = "What are the two main components of the Transformer architecture? "
-# retriever = db.as_retriever(search_kwargs={"k": 3})
-# chunks = retriever.invoke(query)
 
-# # Export to JSON
-# export_chunks_to_json(chunks, "rag_results.json")
 
 #________________________________________________________________________________________________________________
 
-# def run_complete_ingestion_pipeline(pdf_path: str):
-#     """Run the complete RAG ingestion pipeline"""
-#     print("🚀 Starting RAG Ingestion Pipeline")
-#     print("=" * 50)
-    
-#     # Step 1: Partition
-#     elements = partition_document(pdf_path)
-    
-#     # Step 2: Chunk
-#     chunks = create_chunks_by_title(elements)
-    
-#     # Step 3: AI Summarisation
-#     summarised_chunks = summarise_chunks(chunks)
-    
-#     # Step 4: Vector Store
-#     db = create_vector_store(summarised_chunks, persist_directory="dbv2/chroma_db")
-    
-#     print("🎉 Pipeline completed successfully!")
-#     return db
 
-# Run the complete pipeline
 
 
 
@@ -474,20 +404,6 @@ def run_complete_ingestion_pipeline(
 
 #________________________________________________________________________________________________________________
 
-# db = run_complete_ingestion_pipeline("./docs/attention-is-all-you-need.pdf")
-
-# vector_store = VectorStoreManager(persist_directory="dbv2/chroma_db")
-
-# run_complete_ingestion_pipeline(
-#     "./docs/attention-is-all-you-need.pdf",
-#     vector_store
-# )
-
-# vector_store.persist()
-
-
-
-
 
 vector_store = VectorStoreManager(persist_directory="dbv2/chroma_db")
 
@@ -501,7 +417,7 @@ ingest_folder(
 
 # Query the vector store
 # query = "How many attention heads does the Transformer use, and what is the dimension of each head? "
-query = "What is the payment method used for TXN-004?"
+query = "What approvals are required for a Normal production system change?"
 
 retriever = vector_store.as_retriever(search_kwargs={"k": 3})
 
