@@ -88,13 +88,13 @@ def rows_to_documents(
 #________________________________________________________________________________________________________________
 
 
-file_router = FileRouter(
-    ingestors=[
-        PDFIngestor(),
-        DocxIngestor(),
-        SheetIngestor()
-    ]
-)
+# file_router = FileRouter(
+#     ingestors=[
+#         PDFIngestor(),
+#         DocxIngestor(),
+#         SheetIngestor()
+#     ]
+# )
 
 #________________________________________________________________________________________________________________
 
@@ -405,23 +405,23 @@ def run_complete_ingestion_pipeline(
 #________________________________________________________________________________________________________________
 
 
-vector_store = VectorStoreManager(persist_directory="dbv2/chroma_db")
+# vector_store = VectorStoreManager(persist_directory="dbv2/chroma_db")
 
-ingest_folder(
-    "./docs",
-    vector_store,
-    file_router
-)
+# ingest_folder(
+#     "./docs",
+#     vector_store,
+#     file_router
+# )
 
 #________________________________________________________________________________________________________________
 
 # Query the vector store
 # query = "How many attention heads does the Transformer use, and what is the dimension of each head? "
-query = "What approvals are required for a Normal production system change?"
+# query = "What approvals are required for a Normal production system change?"
 
-retriever = vector_store.as_retriever(search_kwargs={"k": 3})
+# retriever = vector_store.as_retriever(search_kwargs={"k": 3})
 
-chunks = retriever.invoke(query)
+# chunks = retriever.invoke(query)
 
 def generate_final_answer(chunks, query):
     """Generate final answer using multimodal content"""
@@ -493,5 +493,25 @@ def generate_final_answer(chunks, query):
         return "Sorry, I encountered an error while generating the answer."
 
 # Usage
-final_answer = generate_final_answer(chunks, query)
-print(final_answer)
+# final_answer = generate_final_answer(chunks, query)
+# print(final_answer)
+
+if __name__ == "__main__":
+    """
+    Example usage - only runs when script is executed directly
+    """
+    vector_store = VectorStoreManager(persist_directory="dbv2/chroma_db")
+    
+    # Example 1: Ingest a folder
+    ingest_folder(
+        "./docs",
+        vector_store,
+        file_router
+    )
+    
+    # Example 2: Query the vector store
+    query = "What approvals are required for a Normal production system change?"
+    retriever = vector_store.as_retriever(search_kwargs={"k": 3})
+    chunks = retriever.invoke(query)
+    final_answer = generate_final_answer(chunks, query)
+    print(final_answer)

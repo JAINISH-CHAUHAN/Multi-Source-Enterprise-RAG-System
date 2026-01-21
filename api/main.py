@@ -28,7 +28,9 @@ COPILOT INSTRUCTIONS:
 
 from fastapi import FastAPI
 from api.core.database import database
-from api.routers import auth
+from api.routers import auth,projects, ingestion
+
+
 
 app = FastAPI(title="rag-backend")
 
@@ -41,6 +43,8 @@ async def shutdown():
     await database.disconnect()
 
 app.include_router(auth.router, prefix="/auth", tags=["Auth"])
+app.include_router(projects.router, prefix="/projects", tags=["Projects"])
+app.include_router(ingestion.router, tags=["Ingestion"])
 
 @app.get("/health")
 async def health():
