@@ -21,8 +21,8 @@ from providers.sheet_ingestor import SheetIngestor
 
 from langchain_chroma import Chroma
 from langchain_core.messages import HumanMessage
-from dotenv import load_dotenv
 
+from dotenv import load_dotenv
 load_dotenv()
 
 import pandas as pd
