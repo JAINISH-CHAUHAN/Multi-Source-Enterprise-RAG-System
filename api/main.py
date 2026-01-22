@@ -28,7 +28,7 @@ COPILOT INSTRUCTIONS:
 
 from fastapi import FastAPI
 from api.core.database import database
-from api.routers import auth,projects, ingestion
+from api.routers import auth,projects, ingestion, ingestion_jobs
 
 
 
@@ -45,6 +45,8 @@ async def shutdown():
 app.include_router(auth.router, prefix="/auth", tags=["Auth"])
 app.include_router(projects.router, prefix="/projects", tags=["Projects"])
 app.include_router(ingestion.router, tags=["Ingestion"])
+app.include_router(ingestion_jobs.router,prefix="/ingestion-jobs",tags=["Ingestion Jobs"])
+
 
 @app.get("/health")
 async def health():

@@ -1,4 +1,7 @@
 import os
+from dotenv import load_dotenv
+
+load_dotenv()  
 
 from core.ai_interfaces import LLM, Embeddings
 
@@ -11,7 +14,7 @@ from providers.ollama.llm import OllamaLLM
 from providers.huggingface.embeddings import HFEmbeddingModel
 
 
-def get_llm(role: str) -> LLM:
+def get_llm(role: str = "default") -> LLM:
     """
     Return an LLM instance based on role configuration.
 
@@ -41,7 +44,7 @@ def get_llm(role: str) -> LLM:
     raise ValueError(f"Unsupported LLM provider: {provider}")
 
 
-def get_embeddings(role: str) -> Embeddings:
+def get_embeddings(role: str = "default") -> Embeddings:
     """
     Return an Embeddings instance based on role configuration.
 

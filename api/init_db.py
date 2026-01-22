@@ -8,6 +8,8 @@ from api.models import organization
 from api.models import session
 from api.models import project   # <-- NEW
 from api.models import document
+from api.models import ingestion_job
+
 
 
 def init():

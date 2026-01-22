@@ -36,7 +36,16 @@ async def ingest_files_for_project(
         )
 
     # 2️⃣ Prepare folders
-    project_root = project["vector_store_path"]
+    BASE_VECTOR_STORE_DIR = os.path.abspath("vector_stores")
+
+    project_root = os.path.join(
+        BASE_VECTOR_STORE_DIR,
+        str(workspace_id),
+        str(project_id)
+    )
+
+    os.makedirs(project_root, exist_ok=True)
+
     kb_folder = os.path.join(project_root, "knowledge_base")
     os.makedirs(kb_folder, exist_ok=True)
 

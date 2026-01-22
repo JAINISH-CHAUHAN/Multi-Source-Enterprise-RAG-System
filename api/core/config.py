@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     EMBEDDINGS_DEFAULT_PROVIDER: str
     EMBEDDINGS_DEFAULT_MODEL: str
 
+    REDIS_URL: str = "redis://localhost:6379/0"
     class Config:
         env_file = ".env"
 
