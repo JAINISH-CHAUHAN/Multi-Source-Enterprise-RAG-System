@@ -6,7 +6,8 @@ from core.ai_factory import get_llm
 from core.vector_store import VectorStoreManager
 
 
-def answer_query(query: str, persist_directory: str, k: int = 3) -> dict:
+
+def answer_query(query: str, persist_directory: str, k: int = 3,conversation_context: str = "") -> dict:
     """
     Generate a source-aware answer using retrieved chunks.
 
@@ -56,7 +57,19 @@ def answer_query(query: str, persist_directory: str, k: int = 3) -> dict:
 
     context = "\n\n".join(context_blocks)
 
+    memory_block = ""
+    if conversation_context:
+        memory_block = f"""
+    PREVIOUS CONVERSATION:
+    {conversation_context}
+
+    The current question may be a follow-up.
+    """
+
+
     prompt = f"""
+    {memory_block}
+
 You are a document-grounded question answering system.
 
 STRICT RULES:

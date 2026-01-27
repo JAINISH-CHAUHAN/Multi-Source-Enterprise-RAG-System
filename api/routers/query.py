@@ -20,4 +20,5 @@ async def query_project(
         project_id=project_id,
         query=payload.query,
         top_k=payload.top_k,
+        conversation_id=payload.conversation_id,
     )
