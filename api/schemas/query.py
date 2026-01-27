@@ -18,3 +18,16 @@ class QueryResponse(BaseModel):
     answer: str
     sources: List[Source] = []
     confidence: Optional[str] = "high"
+
+
+class CitationDetail(BaseModel):
+    source_file: str
+    chunk_index: int
+
+    content: str
+    
+    highlight_text: Optional[str] = None
+    highlight_start: Optional[int] = None
+    highlight_end: Optional[int] = None
+
+    reason: Optional[str] = None

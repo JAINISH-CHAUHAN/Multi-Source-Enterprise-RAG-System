@@ -3,12 +3,14 @@
 from fastapi import APIRouter, Depends
 from api.core.dependencies import get_current_user
 from api.services.citation_service import resolve_citation
+from api.schemas.query import CitationDetail
 
 router = APIRouter()
 
 
 @router.get(
-    "/projects/{project_id}/citations/{source_file}/{chunk_index}"
+    "/projects/{project_id}/citations/{source_file}/{chunk_index}",
+    response_model=CitationDetail
 )
 async def get_citation(
     project_id: str,
