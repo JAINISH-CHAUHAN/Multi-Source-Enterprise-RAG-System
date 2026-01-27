@@ -14,7 +14,7 @@ from providers.ollama.llm import OllamaLLM
 from providers.huggingface.embeddings import HFEmbeddingModel
 
 
-def get_llm(role: str = "default") -> LLM:
+def get_llm(role: str = "primary") -> LLM:
     """
     Return an LLM instance based on role configuration.
 
