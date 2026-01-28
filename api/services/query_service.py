@@ -7,9 +7,10 @@ from api.core.database import database
 from fastapi import HTTPException, status
 from api.services.conversation_service import (
     append_turn,
-    get_recent_turns
+    get_recent_turns,
+    get_conversation_summary,
+    update_conversation_summary,
 )
-
 
 
 async def query_project_knowledge_base(
@@ -44,16 +45,12 @@ async def query_project_knowledge_base(
             detail="Knowledge base not ingested yet"
         )
 
-
     conversation_context = ""
 
     if conversation_id:
-        turns = await get_recent_turns(conversation_id)
-        conversation_context = "\n".join(
-            f"{t['role'].upper()}: {t['content']}"
-            for t in turns
-        )
-
+        summary = await get_conversation_summary(conversation_id)
+        if summary:
+            conversation_context = summary
 
     result = answer_query(
         query=query,
@@ -66,6 +63,8 @@ async def query_project_knowledge_base(
         await append_turn(conversation_id, "user", query)
         await append_turn(conversation_id, "assistant", result["answer"])
 
+        turns = await get_recent_turns(conversation_id)
+        await update_conversation_summary(conversation_id, turns)
 
     return {
         "status": "success",
