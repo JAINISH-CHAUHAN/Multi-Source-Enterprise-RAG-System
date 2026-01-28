@@ -28,7 +28,16 @@ COPILOT INSTRUCTIONS:
 
 from fastapi import FastAPI
 from api.core.database import database
-from api.routers import auth,projects, ingestion, ingestion_jobs, query, citations
+from api.routers import (
+    auth,
+    projects,
+    ingestion,
+    ingestion_jobs,
+    query,
+    citations,
+    conversations,   
+)
+
 
 
 
@@ -48,6 +57,8 @@ app.include_router(ingestion.router, tags=["Ingestion"])
 app.include_router(ingestion_jobs.router,prefix="/ingestion-jobs",tags=["Ingestion Jobs"])
 app.include_router(query.router, tags=["Query"])
 app.include_router(citations.router, tags=["Citations"])
+app.include_router(conversations.router, tags=["Conversations"])
+
 
 
 

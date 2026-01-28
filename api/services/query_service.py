@@ -1,5 +1,3 @@
-# /api/services/query_service.py
-
 import os
 from rag.retrieval.answer import answer_query
 from api.models.project import projects
@@ -7,9 +5,9 @@ from api.core.database import database
 from fastapi import HTTPException, status
 from api.services.conversation_service import (
     append_turn,
-    get_recent_turns,
     get_conversation_summary,
     update_conversation_summary,
+    get_recent_turns,
 )
 
 
@@ -29,24 +27,17 @@ async def query_project_knowledge_base(
     )
 
     if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found"
-        )
+        raise HTTPException(status_code=404, detail="Project not found")
 
-    chroma_path = os.path.join(
-        project["vector_store_path"],
-        "chroma_db"
-    )
+    chroma_path = os.path.join(project["vector_store_path"], "chroma_db")
 
     if not os.path.exists(chroma_path):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=400,
             detail="Knowledge base not ingested yet"
         )
 
     conversation_context = ""
-
     if conversation_id:
         summary = await get_conversation_summary(conversation_id)
         if summary:

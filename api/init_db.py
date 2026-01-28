@@ -6,10 +6,11 @@ from api.core.database import metadata
 from api.models import user
 from api.models import organization
 from api.models import session
-from api.models import project   # <-- NEW
+from api.models import project   
 from api.models import document
 from api.models import ingestion_job
-
+from api.models import conversation
+from api.models import conversation_message
 
 
 def init():
