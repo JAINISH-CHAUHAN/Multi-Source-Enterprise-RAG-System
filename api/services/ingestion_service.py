@@ -20,7 +20,7 @@ async def ingest_files_for_project(
     project_id: str,
     files: list[UploadFile],
 ):
-    # 1️⃣ Validate project ownership
+    #  Validate project ownership
     project = await database.fetch_one(
         projects.select().where(
             (projects.c.id == project_id) &
@@ -35,7 +35,7 @@ async def ingest_files_for_project(
             detail="Project not found"
         )
 
-    # 2️⃣ Prepare folders
+    #  Prepare folders
     BASE_VECTOR_STORE_DIR = os.path.abspath("vector_stores")
 
     project_root = os.path.join(

@@ -1,6 +1,7 @@
-from fastapi import APIRouter, HTTPException
-from api.schemas.auth import RegisterRequest, LoginRequest, TokenResponse
-from api.services.auth_service import register_user, authenticate_user
+from fastapi import APIRouter, HTTPException, Depends
+from api.schemas.auth import RegisterRequest, LoginRequest, TokenResponse, LogoutResponse
+from api.services.auth_service import register_user, authenticate_user, logout_user
+from api.core.dependencies import get_current_user
 
 
 
@@ -45,4 +46,20 @@ async def login(payload: LoginRequest):
         )
 
     return {"access_token": token}
+
+
+@router.post("/logout", response_model=LogoutResponse)
+async def logout(
+    current_user=Depends(get_current_user)
+):
+    try:
+        result = await logout_user(current_user["session_id"])
+        return result
+    except ValueError as e:
+        if str(e) == "SESSION_NOT_FOUND":
+            raise HTTPException(
+                status_code=404,
+                detail="Session not found"
+            )
+        raise
 

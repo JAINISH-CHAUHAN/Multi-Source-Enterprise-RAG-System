@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     # Embedding roles
     EMBEDDINGS_DEFAULT_PROVIDER: str
     EMBEDDINGS_DEFAULT_MODEL: str
+    
+    # Provider API keys
+    GOOGLE_API_KEY: str | None = None
+    OPENAI_API_KEY: str | None = None
 
     REDIS_URL: str = "redis://localhost:6379/0"
     class Config:

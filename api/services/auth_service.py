@@ -3,7 +3,7 @@ from api.models.user import users
 from api.models.organization import organizations
 from api.models.session import sessions
 from api.core.security import hash_password, verify_password, create_access_token
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.exc import IntegrityError
 
 import uuid
@@ -53,7 +53,7 @@ async def authenticate_user(email: str, password: str):
         return None
 
     session_id = uuid.uuid4()
-    expires_at = datetime.utcnow() + timedelta(hours=1)
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
 
     await database.execute(
         sessions.insert().values(
@@ -70,4 +70,16 @@ async def authenticate_user(email: str, password: str):
     })
 
     return token
+
+
+async def logout_user(session_id: str):
+    """Delete user session to invalidate token"""
+    result = await database.execute(
+        sessions.delete().where(sessions.c.id == session_id)
+    )
+    
+    if result == 0:
+        raise ValueError("SESSION_NOT_FOUND")
+    
+    return {"message": "Logged out successfully"}
 

@@ -9,6 +9,11 @@ from core.ai_interfaces import LLM, Embeddings
 from providers.openai.llm import OpenAILLM
 from providers.openai.embeddings import OpenAIEmbeddingModel
 
+# Gemini implementations
+from providers.gemini.llm import GeminiLLM
+from providers.gemini.embeddings import GeminiEmbeddingModel
+
+
 #local models
 from providers.ollama.llm import OllamaLLM
 from providers.huggingface.embeddings import HFEmbeddingModel
@@ -37,7 +42,10 @@ def get_llm(role: str = "primary") -> LLM:
 
     if provider == "openai":
         return OpenAILLM(model=model)
-    
+
+    if provider == "gemini":
+        return GeminiLLM(model=model)
+
     if provider == "ollama":
         return OllamaLLM(model=model)
 
@@ -66,6 +74,9 @@ def get_embeddings(role: str = "default") -> Embeddings:
 
     if provider == "openai":
         return OpenAIEmbeddingModel(model=model)
+    
+    if provider == "gemini":
+        return GeminiEmbeddingModel(model=model)
     
     if provider == "hf":
         return HFEmbeddingModel(model=model)
