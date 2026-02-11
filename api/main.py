@@ -26,8 +26,13 @@ COPILOT INSTRUCTIONS:
 
 """
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import HTTPException
 from api.core.database import database
+from api.core.logging import setup_logging, get_logger
+from api.core.exceptions import BaseAppException
 from api.routers import (
     auth,
     projects,
@@ -37,19 +42,137 @@ from api.routers import (
     citations,
     conversations,   
 )
+import traceback
+
+
+logger = get_logger(__name__)
 
 
 
 
 app = FastAPI(title="rag-backend")
 
+
+
+# Add this BEFORE your routes
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# ============================================================================
+# GLOBAL EXCEPTION HANDLERS
+# ============================================================================
+
+@app.exception_handler(BaseAppException)
+async def handle_app_exception(request: Request, exc: BaseAppException):
+    """
+    Handle all domain-specific exceptions (LLM, VectorStore, Ingestion, etc.)
+    
+    Returns structured JSON response with error details.
+    Logs full context for debugging while sending clean message to frontend.
+    """
+    logger.error(
+        f"Application error: {exc.error_code}",
+        extra={
+            "error_code": exc.error_code,
+            "user_message": exc.user_message,
+            "details": exc.details,
+            "path": request.url.path
+        },
+        exc_info=True
+    )
+    
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content=exc.to_dict()
+    )
+
+
+@app.exception_handler(HTTPException)
+async def handle_http_exception(request: Request, exc: HTTPException):
+    """
+    Handle FastAPI's HTTPException (validation, 404, auth errors, etc.)
+    
+    Preserves FastAPI's default behavior but adds logging.
+    """
+    logger.warning(
+        f"HTTP exception: {exc.status_code} - {exc.detail}",
+        extra={
+            "status_code": exc.status_code,
+            "detail": exc.detail,
+            "path": request.url.path
+        }
+    )
+    
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail}
+    )
+
+
+@app.exception_handler(Exception)
+async def handle_unexpected_exception(request: Request, exc: Exception):
+    """
+    Catch-all handler for unhandled exceptions.
+    
+    Prevents server crashes by intercepting unexpected errors.
+    Logs full traceback for debugging.
+    Returns generic error message to frontend (no internal details exposed).
+    """
+    # Log full traceback for debugging
+    logger.critical(
+        f"Unhandled exception: {str(exc)}",
+        extra={
+            "exception_type": type(exc).__name__,
+            "path": request.url.path,
+            "traceback": traceback.format_exc()
+        },
+        exc_info=True
+    )
+    
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={
+            "error_code": "INTERNAL_ERROR",
+            "error_message": "An unexpected error occurred. Please try again later.",
+            "details": {}
+        }
+    )
+
+
+# ============================================================================
+# EVENT HANDLERS
+# ============================================================================
+
 @app.on_event("startup")
 async def startup():
+    # Initialize logging infrastructure
+    setup_logging(log_level="INFO")
+    logger.info("Starting RAG Backend Application")
+    
+    # Connect to database
     await database.connect()
+    logger.info("Database connection established")
 
 @app.on_event("shutdown")
 async def shutdown():
     await database.disconnect()
+    logger.info("Database connection closed")
+    logger.info("Application shutdown complete")
+
+
+# ============================================================================
+# ROUTERS
+# ============================================================================
 
 app.include_router(auth.router, prefix="/auth", tags=["Auth"])
 app.include_router(projects.router, prefix="/projects", tags=["Projects"])

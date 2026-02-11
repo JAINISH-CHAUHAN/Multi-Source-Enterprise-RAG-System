@@ -3,9 +3,17 @@ from langchain_core.documents import Document
 from langchain_core.messages import HumanMessage
 from core.ai_factory import get_llm
 from rag.ingestion.content import separate_content_types
+from api.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 def create_ai_enhanced_summary(text, tables, images):
+    """
+    Create AI-enhanced summary for document chunk.
+    
+    Falls back to truncated text if LLM fails (logs error but doesn't halt ingestion).
+    """
     try:
         llm = get_llm("primary")
 
@@ -27,9 +35,16 @@ TEXT:
                 {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img}"}}
             )
 
-        return llm.invoke([HumanMessage(content=message)])
+        summary = llm.invoke([HumanMessage(content=message)])
+        logger.debug("AI-enhanced summary created successfully")
+        return summary
 
-    except Exception:
+    except Exception as e:
+        logger.warning(
+            f"Failed to create AI-enhanced summary, falling back to truncated text: {str(e)}",
+            extra={"error_type": type(e).__name__}
+        )
+        # Fallback: use truncated original text
         return text[:300] + "..."
 
 

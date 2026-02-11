@@ -2,9 +2,13 @@ import uuid
 from api.core.database import database
 from api.models.conversation import conversations
 from api.models.conversation_message import conversation_messages
+from api.core.logging import get_logger
+from api.core.exceptions import LLMException
 from core.ai_factory import get_llm
 from langchain_core.messages import HumanMessage
 from sqlalchemy import desc
+
+logger = get_logger(__name__)
 
 
 MAX_TURNS_FOR_SUMMARY = 12
@@ -55,6 +59,11 @@ async def get_conversation_summary(conversation_id: str) -> str | None:
 
 
 async def update_conversation_summary(conversation_id: str, turns: list[dict]):
+    """
+    Update conversation summary using LLM.
+    
+    Logs errors but doesn't fail if summarization fails (non-critical operation).
+    """
     if not turns:
         return
 
@@ -78,16 +87,33 @@ CONVERSATION:
 SUMMARY:
 """.strip()
 
-    llm = get_llm("primary")
-    response = llm.invoke([
-        HumanMessage(content=[{"type": "text", "text": prompt}])
-    ])
+    try:
+        llm = get_llm("primary")
+        response = llm.invoke([
+            HumanMessage(content=[{"type": "text", "text": prompt}])
+        ])
 
-    await database.execute(
-        conversations.update()
-        .where(conversations.c.id == conversation_id)
-        .values(summary=str(response))
-    )
+        await database.execute(
+            conversations.update()
+            .where(conversations.c.id == conversation_id)
+            .values(summary=str(response))
+        )
+        
+        logger.debug(f"Updated conversation summary for {conversation_id}")
+        
+    except LLMException as e:
+        logger.warning(
+            f"Failed to generate conversation summary (LLM error): {e.user_message}",
+            extra={"conversation_id": conversation_id, "error_code": e.error_code}
+        )
+        # Don't fail - conversation can continue without summary
+    except Exception as e:
+        logger.error(
+            f"Unexpected error updating conversation summary: {str(e)}",
+            exc_info=True,
+            extra={"conversation_id": conversation_id}
+        )
+        # Don't fail - conversation can continue without summary
 
 
 async def list_conversations(project_id: str, user_id: str) -> list[dict]:

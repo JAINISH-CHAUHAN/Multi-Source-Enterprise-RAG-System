@@ -4,6 +4,10 @@ from dotenv import load_dotenv
 load_dotenv()  
 
 from core.ai_interfaces import LLM, Embeddings
+from api.core.logging import get_logger
+from api.core.exceptions import LLMException, EmbeddingException
+
+logger = get_logger(__name__)
 
 # OpenAI implementations
 from providers.openai.llm import OpenAILLM
@@ -34,22 +38,48 @@ def get_llm(role: str = "primary") -> LLM:
     model = os.getenv(f"LLM_{role}_MODEL")
 
     if not provider or not model:
+        logger.error(f"LLM configuration missing for role '{role}'")
         raise ValueError(
             f"LLM configuration missing for role '{role}'"
         )
 
     provider = provider.lower()
 
-    if provider == "openai":
-        return OpenAILLM(model=model)
+    try:
+        if provider == "openai":
+            logger.debug(f"Initializing OpenAI LLM: {model}")
+            return OpenAILLM(model=model)
 
-    if provider == "gemini":
-        return GeminiLLM(model=model)
+        if provider == "gemini":
+            logger.debug(f"Initializing Gemini LLM: {model}")
+            return GeminiLLM(model=model)
 
-    if provider == "ollama":
-        return OllamaLLM(model=model)
+        if provider == "ollama":
+            logger.debug(f"Initializing Ollama LLM: {model}")
+            return OllamaLLM(model=model)
 
-    raise ValueError(f"Unsupported LLM provider: {provider}")
+        logger.error(f"Unsupported LLM provider: {provider}")
+        raise ValueError(f"Unsupported LLM provider: {provider}")
+    
+    except ValueError:
+        # Re-raise configuration errors
+        raise
+    except Exception as e:
+        logger.error(
+            f"Failed to initialize LLM provider '{provider}': {str(e)}",
+            exc_info=True
+        )
+        raise LLMException(
+            user_message=f"Failed to initialize {provider} language model. Please check configuration.",
+            details={
+                "provider": provider,
+                "model": model,
+                "role": role,
+                "error": str(e),
+                "error_type": type(e).__name__
+            },
+            error_code="LLM_INIT_ERROR"
+        )
 
 
 def get_embeddings(role: str = "default") -> Embeddings:
@@ -66,22 +96,48 @@ def get_embeddings(role: str = "default") -> Embeddings:
     model = os.getenv(f"EMBEDDINGS_{role}_MODEL")
 
     if not provider or not model:
+        logger.error(f"Embeddings configuration missing for role '{role}'")
         raise ValueError(
             f"Embeddings configuration missing for role '{role}'"
         )
 
     provider = provider.lower()
 
-    if provider == "openai":
-        return OpenAIEmbeddingModel(model=model)
-    
-    if provider == "gemini":
-        return GeminiEmbeddingModel(model=model)
-    
-    if provider == "hf":
-        return HFEmbeddingModel(model=model)
+    try:
+        if provider == "openai":
+            logger.debug(f"Initializing OpenAI embeddings: {model}")
+            return OpenAIEmbeddingModel(model=model)
+        
+        if provider == "gemini":
+            logger.debug(f"Initializing Gemini embeddings: {model}")
+            return GeminiEmbeddingModel(model=model)
+        
+        if provider == "hf":
+            logger.debug(f"Initializing HuggingFace embeddings: {model}")
+            return HFEmbeddingModel(model=model)
 
-    raise ValueError(f"Unsupported Embeddings provider: {provider}")
+        logger.error(f"Unsupported Embeddings provider: {provider}")
+        raise ValueError(f"Unsupported Embeddings provider: {provider}")
+    
+    except ValueError:
+        # Re-raise configuration errors
+        raise
+    except Exception as e:
+        logger.error(
+            f"Failed to initialize Embeddings provider '{provider}': {str(e)}",
+            exc_info=True
+        )
+        raise EmbeddingException(
+            user_message=f"Failed to initialize {provider} embeddings. Please check configuration.",
+            details={
+                "provider": provider,
+                "model": model,
+                "role": role,
+                "error": str(e),
+                "error_type": type(e).__name__
+            },
+            error_code="EMBEDDING_INIT_ERROR"
+        )
 
 
 

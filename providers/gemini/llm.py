@@ -3,6 +3,10 @@ from typing import List, Any
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 from core.ai_interfaces import LLM
+from api.core.exceptions import LLMException
+from api.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class GeminiLLM(LLM):
@@ -30,7 +34,22 @@ class GeminiLLM(LLM):
         """
         Invoke Gemini chat model and return plain text.
         """
-        response = self.client.invoke(messages)
-
-        # LangChain returns an AIMessage
-        return response.content
+        try:
+            response = self.client.invoke(messages)
+            return response.content
+        except Exception as e:
+            logger.error(
+                f"Gemini LLM invocation failed: {str(e)}",
+                exc_info=True,
+                extra={"model": self.model, "error_type": type(e).__name__}
+            )
+            raise LLMException(
+                user_message="AI model is temporarily unavailable. Please try again.",
+                details={
+                    "provider": "gemini",
+                    "model": self.model,
+                    "error": str(e),
+                    "error_type": type(e).__name__
+                },
+                error_code="LLM_GEMINI_ERROR"
+            )

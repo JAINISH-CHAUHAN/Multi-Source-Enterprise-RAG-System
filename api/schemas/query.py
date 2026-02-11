@@ -19,6 +19,10 @@ class QueryResponse(BaseModel):
     answer: str
     sources: List[Source] = []
     confidence: Optional[str] = "high"
+    
+    # Error handling fields (populated only on failure)
+    error_code: Optional[str] = None
+    error_message: Optional[str] = None
 
 
 class CitationDetail(BaseModel):
