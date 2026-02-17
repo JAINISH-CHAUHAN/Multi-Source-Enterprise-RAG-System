@@ -28,13 +28,14 @@ async def create_conversation(project_id: str, user_id: str) -> str:
     return conversation_id
 
 
-async def append_turn(conversation_id: str, role: str, content: str):
+async def append_turn(conversation_id: str, role: str, content: str, sources: list = None):
     await database.execute(
         conversation_messages.insert().values(
             id=str(uuid.uuid4()),
             conversation_id=conversation_id,
             role=role,
             content=content,
+            sources=sources,
         )
     )
 
@@ -188,3 +189,35 @@ async def rename_conversation(
     )
 
     return True
+
+
+async def get_conversation_history(conversation_id: str, user_id: str) -> dict | None:
+    """
+    Get complete conversation history with all messages and citations.
+    Returns None if conversation not found or unauthorized.
+    """
+    # Verify ownership
+    conversation = await database.fetch_one(
+        conversations.select().where(
+            (conversations.c.id == conversation_id) &
+            (conversations.c.user_id == user_id)
+        )
+    )
+
+    if not conversation:
+        return None
+
+    # Fetch all messages ordered by creation time
+    query = (
+        conversation_messages.select()
+        .where(conversation_messages.c.conversation_id == conversation_id)
+        .order_by(conversation_messages.c.created_at.asc())
+    )
+
+    messages = await database.fetch_all(query)
+
+    return {
+        "conversation_id": conversation["id"],
+        "title": conversation["title"],
+        "messages": [dict(msg) for msg in messages]
+    }

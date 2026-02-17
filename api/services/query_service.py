@@ -77,7 +77,7 @@ async def query_project_knowledge_base(
     if conversation_id:
         try:
             await append_turn(conversation_id, "user", query)
-            await append_turn(conversation_id, "assistant", result["answer"])
+            await append_turn(conversation_id, "assistant", result["answer"], result["sources"])
 
             turns = await get_recent_turns(conversation_id)
             await update_conversation_summary(conversation_id, turns)

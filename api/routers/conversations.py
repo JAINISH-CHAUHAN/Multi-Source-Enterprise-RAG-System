@@ -4,11 +4,32 @@ from api.services.conversation_service import (
     list_conversations,
     delete_conversation,
     rename_conversation,
+    get_conversation_history,
 )
 from api.core.dependencies import get_current_user
-from api.schemas.conversation import RenameConversationRequest
+from api.schemas.conversation import RenameConversationRequest, ConversationHistoryResponse
 
 router = APIRouter()
+
+
+@router.get("/conversations/{conversation_id}/history", response_model=ConversationHistoryResponse)
+async def get_conversation_messages(
+    conversation_id: str,
+    current_user=Depends(get_current_user),
+):
+    """Get complete conversation history with all messages and citations"""
+    history = await get_conversation_history(
+        conversation_id=conversation_id,
+        user_id=current_user["user_id"],
+    )
+
+    if not history:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Conversation not found or unauthorized"
+        )
+
+    return history
 
 
 @router.patch("/conversations/{conversation_id}/rename")

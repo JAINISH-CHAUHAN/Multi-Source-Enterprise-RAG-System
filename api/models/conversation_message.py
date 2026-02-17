@@ -35,6 +35,12 @@ conversation_messages = sa.Table(
     ),
 
     sa.Column(
+        "sources",
+        sa.JSON,
+        nullable=True,
+    ),
+
+    sa.Column(
         "created_at",
         sa.DateTime(timezone=True),
         server_default=sa.func.now(),
