@@ -3,10 +3,38 @@ from api.services.conversation_service import (
     create_conversation,
     list_conversations,
     delete_conversation,
+    rename_conversation,
 )
 from api.core.dependencies import get_current_user
+from api.schemas.conversation import RenameConversationRequest
 
 router = APIRouter()
+
+
+@router.patch("/conversations/{conversation_id}/rename")
+async def update_conversation_title(
+    conversation_id: str,
+    request: RenameConversationRequest,
+    current_user=Depends(get_current_user),
+):
+    """Rename a conversation"""
+    renamed = await rename_conversation(
+        conversation_id=conversation_id,
+        user_id=current_user["user_id"],
+        new_title=request.title,
+    )
+
+    if not renamed:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Conversation not found or unauthorized"
+        )
+
+    return {
+        "status": "success",
+        "conversation_id": conversation_id,
+        "title": request.title
+    }
 
 
 @router.post("/projects/{project_id}/conversations")

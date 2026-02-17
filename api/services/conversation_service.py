@@ -153,3 +153,38 @@ async def delete_conversation(conversation_id: str, user_id: str) -> bool:
     )
 
     return True
+
+
+async def rename_conversation(
+    conversation_id: str, 
+    user_id: str, 
+    new_title: str
+) -> bool:
+    """
+    Rename a conversation owned by the user.
+    Returns True if renamed, False if not found or unauthorized.
+    """
+    # Verify ownership before updating
+    conversation = await database.fetch_one(
+        conversations.select().where(
+            (conversations.c.id == conversation_id) &
+            (conversations.c.user_id == user_id)
+        )
+    )
+
+    if not conversation:
+        return False
+
+    # Update the title
+    await database.execute(
+        conversations.update()
+        .where(conversations.c.id == conversation_id)
+        .values(title=new_title.strip())
+    )
+
+    logger.info(
+        f"Conversation {conversation_id} renamed to '{new_title}'",
+        extra={"conversation_id": conversation_id, "user_id": user_id}
+    )
+
+    return True

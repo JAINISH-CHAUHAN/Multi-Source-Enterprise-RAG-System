@@ -29,6 +29,13 @@ conversations = sa.Table(
         nullable=False,
     ),
 
+    # User-defined title for the conversation
+    sa.Column(
+        "title",
+        sa.String(255),
+        nullable=True,
+    ),
+
     # LLM-generated rolling summary
     sa.Column(
         "summary",
