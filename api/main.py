@@ -40,12 +40,18 @@ from api.routers import (
     ingestion_jobs,
     query,
     citations,
-    conversations,   
+    conversations,
+    documents,   
 )
 import traceback
+import asyncio
 
 
 logger = get_logger(__name__)
+
+
+# Global task queue coroutine handle
+_task_worker_task = None
 
 
 
@@ -155,6 +161,8 @@ async def handle_unexpected_exception(request: Request, exc: Exception):
 
 @app.on_event("startup")
 async def startup():
+    global _task_worker_task
+    
     # Initialize logging infrastructure
     setup_logging(log_level="INFO")
     logger.info("Starting RAG Backend Application")
@@ -162,9 +170,27 @@ async def startup():
     # Connect to database
     await database.connect()
     logger.info("Database connection established")
+    
+    # Start task queue processor
+    try:
+        from api.services.task_worker import poll_queue
+        _task_worker_task = asyncio.create_task(poll_queue())
+        logger.info("Task queue processor started")
+    except Exception as e:
+        logger.error(f"Failed to start task queue processor: {str(e)}", exc_info=True)
 
 @app.on_event("shutdown")
 async def shutdown():
+    global _task_worker_task
+    
+    # Stop task queue processor
+    if _task_worker_task:
+        _task_worker_task.cancel()
+        try:
+            await _task_worker_task
+        except asyncio.CancelledError:
+            logger.info("Task queue processor stopped")
+    
     await database.disconnect()
     logger.info("Database connection closed")
     logger.info("Application shutdown complete")
@@ -177,17 +203,13 @@ async def shutdown():
 app.include_router(auth.router, prefix="/auth", tags=["Auth"])
 app.include_router(projects.router, prefix="/projects", tags=["Projects"])
 app.include_router(ingestion.router, tags=["Ingestion"])
-app.include_router(ingestion_jobs.router,prefix="/ingestion-jobs",tags=["Ingestion Jobs"])
+app.include_router(ingestion_jobs.router, prefix="/ingestion-jobs", tags=["Ingestion Jobs"])
+app.include_router(documents.router, tags=["Documents"])
 app.include_router(query.router, tags=["Query"])
 app.include_router(citations.router, tags=["Citations"])
 app.include_router(conversations.router, tags=["Conversations"])
 
 
-
-
-
 @app.get("/health")
 async def health():
     return {"status": "ok"}
-
-

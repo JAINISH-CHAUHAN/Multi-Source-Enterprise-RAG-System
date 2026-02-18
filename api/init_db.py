@@ -8,7 +8,9 @@ from api.models import organization
 from api.models import session
 from api.models import project   
 from api.models import document
+from api.models import document_chunk
 from api.models import ingestion_job
+from api.models import ingestion_task
 from api.models import conversation
 from api.models import conversation_message
 

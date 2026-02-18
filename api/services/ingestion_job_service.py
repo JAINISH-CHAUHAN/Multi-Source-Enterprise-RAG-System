@@ -2,10 +2,13 @@ import os
 import shutil
 import uuid
 import traceback
+from datetime import datetime, timezone
+from typing import List, Dict, Any
 from fastapi import BackgroundTasks, UploadFile, HTTPException, status
 from api.core.database import database
 from api.core.redis import redis_client
 from api.models.ingestion_job import ingestion_jobs
+from api.models.document import documents
 from api.models.project import projects
 from api.core.logging import get_logger
 from api.core.exceptions import (
@@ -17,6 +20,8 @@ from api.core.exceptions import (
 
 from core.vector_store import VectorStoreManager
 from core.file_router import FileRouter
+from core.hashing import compute_file_hash
+from core.task_queue import enqueue_task
 from providers.pdf_ingestor import PDFIngestor
 from providers.docx_ingestor import DocxIngestor
 from providers.sheet_ingestor import SheetIngestor
@@ -24,6 +29,259 @@ from providers.sheet_ingestor import SheetIngestor
 from rag.ingestion.folder import ingest_folder
 
 logger = get_logger(__name__)
+
+
+async def create_and_run_ingestion_job_v2(
+    project_id: str,
+    workspace_id: str,
+    files: List[UploadFile],
+    background_tasks: BackgroundTasks,
+) -> Dict[str, Any]:
+    """
+    Content-addressed ingestion with deduplication and task queue.
+    
+    New features vs v1:
+    - Computes file hash for deduplication
+    - Skips identical files already ingested
+    - Detects file updates (same name, different content)
+    - Creates document records before ingestion
+    - Uses task queue for background processing
+    - Per-file status tracking
+    
+    Returns:
+        {
+            "job_id": UUID,
+            "total_files": int,
+            "new_files": int,
+            "skipped_files": list[str],  # Already ingested
+            "updated_files": list[str],  # Updated versions
+        }
+    """
+    logger.info(f"Starting content-addressed ingestion for project {project_id} with {len(files)} files")
+    
+    # 1️⃣ Validate project ownership
+    try:
+        project = await database.fetch_one(
+            projects.select().where(
+                (projects.c.id == project_id) &
+                (projects.c.workspace_id == workspace_id) &
+                (projects.c.is_deleted == False)
+            )
+        )
+    except Exception as e:
+        logger.error(f"Database query failed for project validation: {str(e)}", exc_info=True)
+        raise DatabaseException(
+            user_message="Failed to validate project. Please try again.",
+            details={"project_id": project_id, "error": str(e)},
+            error_code="DATABASE_QUERY_ERROR"
+        )
+    
+    if not project:
+        logger.warning(f"Project not found: {project_id} for workspace {workspace_id}")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Project not found"
+        )
+    
+    # 2️⃣ Construct filesystem paths
+    BASE_DIR = os.path.abspath("vector_stores")
+    
+    kb_folder = os.path.join(
+        BASE_DIR,
+        str(workspace_id),
+        str(project_id),
+        "knowledge_base"
+    )
+    
+    # 3️⃣ Create directory structure
+    try:
+        os.makedirs(kb_folder, exist_ok=True)
+        logger.debug(f"Created directory: {kb_folder}")
+    except Exception as e:
+        logger.error(f"Failed to create directory {kb_folder}: {str(e)}", exc_info=True)
+        raise FileProcessingException(
+            user_message="Failed to create storage directory. Please contact support.",
+            details={"kb_folder": kb_folder, "error": str(e)},
+            error_code="FILE_DIRECTORY_CREATION_ERROR"
+        )
+    
+    # 4️⃣ Create job record
+    job_id = uuid.uuid4()
+    
+    try:
+        await database.execute(
+            ingestion_jobs.insert().values(
+                id=job_id,
+                project_id=project_id,
+                status="pending",
+            )
+        )
+        logger.info(f"Created ingestion job record: {job_id}")
+    except Exception as e:
+        logger.error(f"Failed to create job record: {str(e)}", exc_info=True)
+        raise DatabaseException(
+            user_message="Failed to create ingestion job. Please try again.",
+            details={"job_id": str(job_id), "error": str(e)},
+            error_code="DATABASE_INSERT_ERROR"
+        )
+    
+    # 5️⃣ Process each file: hash, deduplicate, save, create document record
+    new_files = []
+    skipped_files = []
+    updated_files = []
+    document_ids = []
+    
+    for file in files:
+        try:
+            # Read file bytes (needed for both hashing and saving)
+            file_bytes = await file.read()
+            file_hash = compute_file_hash(file_bytes)
+            
+            logger.debug(f"File {file.filename} hash: {file_hash[:16]}...")
+            
+            # Check for existing document with same hash (deduplication)
+            existing = await database.fetch_one(
+                documents.select().where(
+                    (documents.c.file_hash == file_hash) &
+                    (documents.c.project_id == project_id) &
+                    (documents.c.is_deleted == False)
+                )
+            )
+            
+            if existing:
+                if existing["status"] == "active":
+                    logger.info(f"File {file.filename} already ingested (hash match), skipping")
+                    skipped_files.append(file.filename)
+                    continue
+                elif existing["status"] == "processing":
+                    logger.info(f"File {file.filename} already being processed, skipping")
+                    skipped_files.append(file.filename)
+                    continue
+                # If status is 'failed', fall through to retry
+            
+            # Check for updated file (same name, different hash)
+            old_version = await database.fetch_one(
+                documents.select().where(
+                    (documents.c.file_name == file.filename) &
+                    (documents.c.project_id == project_id) &
+                    (documents.c.is_deleted == False) &
+                    (documents.c.file_hash != file_hash)
+                )
+            )
+            
+            if old_version:
+                logger.info(f"File {file.filename} is an updated version, will replace old vectors")
+                updated_files.append(file.filename)
+                
+                # Mark old version for deletion
+                await enqueue_task(
+                    database,
+                    task_type="delete",
+                    document_id=old_version["id"],
+                    job_id=job_id,
+                    metadata={"reason": "replaced_by_update"}
+                )
+            
+            # Save file to disk
+            file_path = os.path.join(kb_folder, file.filename)
+            try:
+                with open(file_path, "wb") as f:
+                    f.write(file_bytes)
+                logger.debug(f"Saved file: {file.filename}")
+            except Exception as e:
+                logger.error(f"Failed to save file {file.filename}: {str(e)}", exc_info=True)
+                raise FileProcessingException(
+                    user_message=f"Failed to save file: {file.filename}",
+                    details={"file_name": file.filename, "error": str(e)},
+                    error_code="FILE_SAVE_ERROR"
+                )
+            
+            # Determine source type (basic detection)
+            file_ext = os.path.splitext(file.filename)[1].lower()
+            source_type_map = {
+                ".pdf": "pdf",
+                ".docx": "docx",
+                ".doc": "docx",
+                ".xlsx": "sheet",
+                ".xls": "sheet",
+                ".csv": "sheet",
+            }
+            source_type = source_type_map.get(file_ext, "unknown")
+            
+            # Create document record
+            document_id = uuid.uuid4()
+            await database.execute(
+                documents.insert().values(
+                    id=document_id,
+                    project_id=project_id,
+                    file_name=file.filename,
+                    source_type=source_type,
+                    file_hash=file_hash,
+                    status="pending",
+                    created_at=datetime.now(timezone.utc),
+                )
+            )
+            
+            logger.info(f"Created document record {document_id} for {file.filename}")
+            
+            # Enqueue ingestion task
+            await enqueue_task(
+                database,
+                task_type="ingest",
+                document_id=document_id,
+                job_id=job_id,
+                metadata={"file_name": file.filename, "file_hash": file_hash}
+            )
+            
+            new_files.append(file.filename)
+            document_ids.append(document_id)
+            
+        except Exception as e:
+            logger.error(f"Failed to process file {file.filename}: {str(e)}", exc_info=True)
+            # Continue with other files
+            continue
+    
+    # 6️⃣ Update job status
+    try:
+        await database.execute(
+            ingestion_jobs.update()
+            .where(ingestion_jobs.c.id == job_id)
+            .values(status="running")
+        )
+    except Exception as e:
+        logger.warning(f"Failed to update job status: {str(e)}")
+    
+    # 7️⃣ Set Redis state (non-critical)
+    try:
+        await redis_client.hset(
+            f"ingestion:{job_id}",
+            mapping={
+                "status": "running",
+                "total_files": len(files),
+                "new_files": len(new_files),
+                "skipped_files": len(skipped_files),
+            }
+        )
+    except Exception as e:
+        logger.warning(f"Failed to set Redis state for job {job_id}: {str(e)}")
+    
+    # 8️⃣ Start background task queue processor
+    # This will be handled by the global queue processor in main.py
+    # For now, we just log that tasks are queued
+    
+    logger.info(
+        f"Ingestion job {job_id} created: {len(new_files)} new, "
+        f"{len(skipped_files)} skipped, {len(updated_files)} updated"
+    )
+    
+    return {
+        "job_id": str(job_id),
+        "total_files": len(files),
+        "new_files": len(new_files),
+        "skipped_files": skipped_files,
+        "updated_files": updated_files,
+        "document_ids": [str(doc_id) for doc_id in document_ids],
+    }
 
 
 async def start_ingestion_job_with_files(
