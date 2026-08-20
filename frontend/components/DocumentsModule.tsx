@@ -46,7 +46,7 @@ function StatusBadge({ status }: { status: string }) {
         <motion.span
           animate={{ opacity: [1, 0.3, 1] }}
           transition={{ duration: 1.5, repeat: Infinity }}
-          className="inline-block h-1 w-1 rounded-full flex-shrink-0"
+          className="inline-block h-1 w-1 rounded-full shrink-0"
           style={{ background: c.color }}
         />
       )}
@@ -64,7 +64,7 @@ function DropZone({ onUpload }: { onUpload: (files: File[]) => void }) {
       onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
       onDragLeave={() => setIsDragging(false)}
       onDrop={(e) => { e.preventDefault(); setIsDragging(false); onUpload(Array.from(e.dataTransfer.files)); }}
-      className="relative cursor-pointer rounded-xl transition-all flex-shrink-0"
+      className="relative cursor-pointer rounded-xl transition-all shrink-0"
       style={{
         border: `2px dashed ${isDragging ? "rgba(99,102,241,0.5)" : "rgba(255,255,255,0.08)"}`,
         background: isDragging ? "rgba(99,102,241,0.06)" : "transparent",
@@ -84,7 +84,7 @@ function DropZone({ onUpload }: { onUpload: (files: File[]) => void }) {
       />
       <div className="flex flex-col items-center">
         <div
-          className="flex items-center justify-center rounded-xl flex-shrink-0"
+          className="flex items-center justify-center rounded-xl shrink-0"
           style={{ width: 40, height: 40, background: "rgba(99,102,241,0.10)", marginBottom: 10 }}
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-indigo-400">
@@ -282,7 +282,7 @@ export default function DocumentsModule() {
               {/* Upload progress */}
               {(uploading || pendingUploads.length > 0) && (
                 <div
-                  className="rounded-lg flex-shrink-0"
+                  className="rounded-lg shrink-0"
                   style={{ marginTop: 10, padding: "10px 14px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
                 >
                   <p className="text-[10px] sm:text-[11px] text-indigo-300" style={{ marginBottom: 6 }}>
@@ -290,9 +290,9 @@ export default function DocumentsModule() {
                   </p>
                   <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 120, overflowY: "auto" }}>
                     {pendingUploads.slice(0, 4).map((name) => (
-                      <div key={name} className="flex items-center justify-between text-[10px] sm:text-[11px] text-slate-400 flex-shrink-0">
+                      <div key={name} className="flex items-center justify-between text-[10px] sm:text-[11px] text-slate-400 shrink-0">
                         <span className="truncate" style={{ maxWidth: "70%" }}>{name}</span>
-                        <span className="text-cyan-300 flex-shrink-0 ml-2">Queued</span>
+                        <span className="text-cyan-300 shrink-0 ml-2">Queued</span>
                       </div>
                     ))}
                   </div>

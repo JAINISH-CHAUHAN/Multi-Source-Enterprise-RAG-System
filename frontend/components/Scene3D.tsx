@@ -165,6 +165,8 @@ function AIOrb({ aiState }: { aiState: AIState }) {
         return { speed: 2.4, glow: 0.72, scale: 1.13, color: new THREE.Color(0x00f5d4), pulseSpeed: 4 };
       case "done":
         return { speed: 0.7, glow: 0.35, scale: 1.01, color: new THREE.Color(0x10b981), pulseSpeed: 0.8 };
+      default:
+        return { speed: 0.5, glow: 0.3, scale: 1, color: new THREE.Color(0x6366f1), pulseSpeed: 1 };
     }
   }, [aiState]);
 
